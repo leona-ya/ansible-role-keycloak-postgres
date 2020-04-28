@@ -1,17 +1,21 @@
 ---
 ### Version and download settings
-keycloak_version: 7.0.0
-keycloak_archive: keycloak-{{ keycloak_version }}.zip
-keycloak_url: https://downloads.jboss.org/keycloak/{{
-              keycloak_version }}/{{ keycloak_archive }}
-keycloak_local_download_dest: "{{ \"~/keycloak_download\" | expanduser }}"
+keycloak_version: 9.0.3
+keycloak_url: "https://downloads.jboss.org/keycloak/{{ keycloak_version }}/keycloak-{{ keycloak_version }}.zip"
+
+## PostgreSQL JDBC
+keycloak_postgresql_jdbc_version: 42.2.12
+keycloak_postgresql_jdbc_url: "https://jdbc.postgresql.org/download/postgresql-{{ keycloak_postgresql_jdbc_version }}.jar"
+keycloak_postgresql_host: "localhost"
+keycloak_postgresql_database: "keycloak"
+keycloak_postgresql_port: 5432
 
 ### Install location and service settings
-keycloak_dest: /opt/keycloak
-keycloak_jboss_home: "{{ keycloak_dest }}/keycloak-{{ keycloak_version }}"
+keycloak_base_path: /opt/keycloak
+keycloak_jboss_home: "{{ keycloak_base_path }}/keycloak-{{ keycloak_version }}"
 keycloak_config_dir: "{{ keycloak_jboss_home }}/standalone/configuration"
 keycloak_service_user: keycloak
-keycloak_service_group: keycloak
+keycloak_service_group: "{{ keycloak_service_user }}"
 
 ### Keycloak configuration settings
 keycloak_bind_address: 0.0.0.0
@@ -31,10 +35,6 @@ keycloak_tls_files_on_target: false
 
 # If Keycloak is already installed remove it and re-install
 keycloak_force_install: false
-
-# Download Keycloak distribution to target system instead of
-# local system where ansible playbook was run from.
-keycloak_archive_on_target: false
 
 # Number of seconds to wait for Keycloak to start (default: 5 minutes)
 keycloak_startup_timeout: 300

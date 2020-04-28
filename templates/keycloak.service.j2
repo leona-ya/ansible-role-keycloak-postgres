@@ -4,11 +4,12 @@ After=network.target
 
 [Service]
 Type=idle
-EnvironmentFile=/etc/sysconfig/keycloak
+Environment="JAVA_OPTS={{ keycloak_java_opts }}"
+Environment="JBOSS_HOME={{ keycloak_jboss_home }}"
 
 User={{ keycloak_service_user }}
 Group={{ keycloak_service_group }}
-ExecStart={{ keycloak_jboss_home }}/bin/standalone.sh -Djboss.bind.address=${KEYCLOAK_BIND_ADDRESS} -Djboss.http.port=${KEYCLOAK_HTTP_PORT} -Djboss.https.port=${KEYCLOAK_HTTPS_PORT} -Djboss.management.http.port=${KEYCLOAK_MANAGEMENT_HTTP_PORT} -Djboss.management.https.port=${KEYCLOAK_MANAGEMENT_HTTPS_PORT}
+ExecStart={{ keycloak_jboss_home }}/bin/standalone.sh -b={{ keycloak_bind_address }} -Djboss.http.port={{ keycloak_http_port }} -Djboss.https.port={{ keycloak_https_port }} -Djboss.management.http.port={{ keycloak_management_http_port }} -Djboss.management.https.port={{ keycloak_management_https_port }}
 TimeoutStartSec=600
 TimeoutStopSec=600
 

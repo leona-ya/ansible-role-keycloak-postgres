@@ -1,5 +1,4 @@
 ---
-
 - name: check for an existing deployment
   stat:
     path: "{{ keycloak_jboss_home }}"
@@ -38,84 +37,94 @@
       fail: msg="The variable keycloak_admin_password must be explicitly set"
       when: keycloak_admin_password is not defined
 
-    - name: set the python interpreter to use on the target
-      import_tasks: "{{ role_path }}/tasks/python_2_3_test.yml"
-
-    - name: create local download location
-      delegate_to: localhost
-      file:
-        dest: "{{ keycloak_local_download_dest }}"
-        state: directory
-      when: not keycloak_archive_on_target
-
     - name: install dependencies
-      package:
-        name: "{{ item }}"
-      loop:
-        - java-1.8.0-openjdk-headless
-        - unzip
-        - pyOpenSSL
+      apt:
+        name:
+          - openjdk-11-jdk-headless
+          - unzip
       become: yes
 
-    - name: create Keycloak service user/group
+    - name: install pip dependencies
+      pip:
+        name: pyOpenSSL
+        state: present
+
+    - name: create Keycloak group
+      group:
+        name: "{{ keycloak_service_group }}"
+        system: yes
+      become: yes
+
+    - name: create Keycloak user
       user:
         name: "{{ keycloak_service_user }}"
-        home: /
-        shell: /sbin/nologin
+        group: "{{ keycloak_service_group }}"
+        home: "{{ keycloak_base_path }}"
+        create_home: yes
         system: yes
-        create_home: no
       become: yes
 
-    - name: create Keycloak install location
-      file:
-        dest: "{{ keycloak_dest }}"
-        state: directory
+    - name: extract Keycloak archive on target
+      unarchive:
+        remote_src: yes
+        src: "{{ keycloak_url }}"
+        dest: "{{ keycloak_base_path }}"
         owner: "{{ keycloak_service_user }}"
         group: "{{ keycloak_service_group }}"
+      notify:
+        - restart keycloak
       become: yes
 
-    - block:
-        - name: download Keycloak archive to target
-          get_url:
-            url: "{{ keycloak_url }}"
-            dest: "{{ keycloak_dest }}"
-            owner: "{{ keycloak_service_user }}"
-            group: "{{ keycloak_service_group }}"
-        - name: extract Keycloak archive on target
-          unarchive:
-            remote_src: yes
-            src: "{{ keycloak_dest }}/{{ keycloak_archive }}"
-            dest: "{{ keycloak_dest }}"
-            creates: "{{ keycloak_jboss_home }}"
-            owner: "{{ keycloak_service_user }}"
-            group: "{{ keycloak_service_group }}"
-          notify:
-            - restart keycloak
-      become: yes
-      when: keycloak_archive_on_target
+    - name: create postgres jdbc driver directory
+      file:
+        path: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main"
+        owner: "{{ keycloak_service_user }}"
+        group: "{{ keycloak_service_group }}"
+        state: directory
 
-    - block:
-        - name: download Keycloak archive to local
-          delegate_to: localhost
-          get_url:
-            url: "{{ keycloak_url }}"
-            dest: "{{ keycloak_local_download_dest }}/{{ keycloak_archive }}"
-        - name: extract Keycloak archive on local
-          unarchive:
-            remote_src: no
-            src: "{{ keycloak_local_download_dest }}/{{ keycloak_archive }}"
-            dest: "{{ keycloak_dest }}"
-            creates: "{{ keycloak_jboss_home }}"
-            owner: "{{ keycloak_service_user }}"
-            group: "{{ keycloak_service_group }}"
-          become: yes
-          notify:
-            - restart keycloak
-      when: not keycloak_archive_on_target
+    - name: download postgres jdbc driver
+      get_url:
+        url: "{{ keycloak_postgresql_jdbc_url }}"
+        dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/postgresql.jar"
+        owner: "{{ keycloak_service_user }}"
+        group: "{{ keycloak_service_group }}"
+
+    - name: create postgres jdbc driver module.xml
+      copy:
+        src: "postgres-module.xml"
+        dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/module.xml"
+        owner: "{{ keycloak_service_user }}"
+        group: "{{ keycloak_service_group }}"
+
+    - name: add postgres jdbc driver to standalone.xml
+      blockinfile:
+        path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+        insertafter: "<drivers>"
+        marker: "<!-- {mark} ANSIBLE MANAGED BLOCK -->"
+        block: |
+          <driver name="postgresql" module="org.postgresql">
+              <xa-datasource-class>org.postgresql.xa.PGXADataSource</xa-datasource-class>
+          </driver>
+
+    - name: add postgres jdbc driver to standalone.xml
+      blockinfile:
+        path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+        marker: "                {mark}"
+        marker_begin: '<datasource jndi-name="java:jboss/datasources/KeycloakDS" pool-name="KeycloakDS" enabled="true" use-java-context="true" statistics-enabled="${wildfly.datasources.statistics-enabled:${wildfly.statistics-enabled:false}}">'
+        marker_end: "</datasource>"
+        block: |
+          <connection-url>jdbc:postgresql://{{ keycloak_postgresql_host }}:{{ keycloak_postgresql_port }}/{{ keycloak_postgresql_database }}</connection-url>
+          <driver>postgresql</driver>
+          <pool>
+              <max-pool-size>20</max-pool-size>
+          </pool>
+          <security>
+              <user-name>{{ keycloak_postgresql_username }}</user-name>
+              <password>{{ keycloak_postgresql_password }}</password>
+          </security>
 
     - name: create Keycloak admin user
       command:
-      args:
         argv:
           - "{{ keycloak_jboss_home }}/bin/add-user-keycloak.sh"
           - -rmaster
@@ -123,8 +132,6 @@
           - -p{{ keycloak_admin_password }}
         creates: "{{ keycloak_config_dir }}/keycloak-add-user.json"
       become: yes
-      tags:
-        - skip_ansible_lint
 
     - name: validate and set PKCS12 variables
       block:
@@ -204,46 +211,29 @@
         - keycloak_tls_cert is not defined
         - keycloak_tls_pkcs12 is defined
 
-    - name: install firewalld
-      package:
-        name: firewalld
-      become: yes
-      when:
-        - keycloak_configure_firewall
+    - name: install and configure firewalld
+      block:
+        - name: install firewalld
+          package:
+            name: firewalld
 
-    - name: enable and start the firewalld service
-      systemd:
-        name: firewalld
-        enabled: yes
-        state: started
-      become: yes
-      when:
-        - keycloak_configure_firewall
+        - name: enable and start the firewalld service
+          systemd:
+            name: firewalld
+            enabled: yes
+            state: started
 
-    - name: configure firewall for Keycloak ports
-      firewalld:
-        port: "{{ item }}"
-        permanent: true
-        state: enabled
-        immediate: yes
-      with_items:
-        - "{{ keycloak_http_port }}/tcp"
-        - "{{ keycloak_https_port }}/tcp"
+        - name: configure firewall for Keycloak ports
+          firewalld:
+            port: "{{ item }}"
+            permanent: true
+            state: enabled
+            immediate: yes
+          with_items:
+            - "{{ keycloak_http_port }}/tcp"
+            - "{{ keycloak_https_port }}/tcp"
       become: yes
-      when:
-        - keycloak_configure_firewall
-
-    - name: configure sysconfig file for keycloak service
-      template:
-        src: keycloak-sysconfig.j2
-        dest: /etc/sysconfig/keycloak
-        owner: root
-        group: root
-        mode: 0644
-      become: yes
-      notify:
-        - restart keycloak
-
+      when: keycloak_configure_firewall
     - name: configure systemd unit file for keycloak service
       template:
         src: keycloak.service.j2

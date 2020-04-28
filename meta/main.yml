@@ -2,23 +2,21 @@
 dependencies: []
 
 galaxy_info:
-  role_name: keycloak
-  author: Nathan Kinder
-  description: Keycloak for systemd managed systems.
-  company: Red Hat
+  role_name: keycloak-postgres
+  author: em0lar, Nathan Kinder
+  description: Keycloak with postgresql for systemd managed systems.
 
   license: GPLv3
 
   min_ansible_version: 2.4
 
   platforms:
-    - name: EL
+    - name: Debian
       versions:
-        - 7
-    - name: Fedora
+        - buster
+    - name: Ubuntu
       versions:
-        - 28
-        - 29
+        - eoan
 
   galaxy_tags:
     - idm

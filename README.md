@@ -73,9 +73,23 @@ You can choose what version of Keycloak to install by setting the following
 variable.  This will be used to determine the download URL to use from
 https://www.keycloak.org/downloads.html:
 
-- `keycloak_version` (default: `4.8.2.Final`)
+- `keycloak_version` (default: `9.0.3`)
+- `keycloak_url` (default: `https://downloads.jboss.org/keycloak/{{ keycloak_version }}/keycloak-{{ keycloak_version }}.zip`)
 
-The following variable always needs to be provided, as the role does
+You can choose which version of the postgresql jdbc driver will be installed and the URL from which it will be downloaded:
+
+- `keycloak_postgresql_jdbc_version` (default: `42.2.12`)
+- `keycloak_postgresql_jdbc_url` (default: `https://jdbc.postgresql.org/download/postgresql-{{ keycloak_postgresql_jdbc_version }}.jar`)
+
+You can configure your database with the following variables, username and password **always need to be provided**:
+
+- `keycloak_postgresql_host` (default: `localhost`)
+- `keycloak_postgresql_database` (default: `keycloak`)
+- `keycloak_postgresql_port` (default: `5432`)
+- `keycloak_postgresql_username`
+- `keycloak_postgresql_password`
+
+The following variable **always needs to be provided**, as the role does
 not hardcode a default:
 
 - `keycloak_admin_password` (use ansible-vault to protect)
