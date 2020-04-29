@@ -353,8 +353,10 @@ Docker Hub.  You can test against a different image/tag like so:
 $ MOLECULE_DISTRO="fedora:28" molecule test`
 ```
 
+## Dependencies
+This role requires `geerlingguy.java`
+
 ## TODO
 
-- Add example playbook that uses ansible-freeipa to create keycloak service and get cert
-- Add example playbook that creates realm/client using keycloak_client module
-- Add ability to configure IdM as an identity backend for keycloak via SSSD provider
+- Better README
+- Test more systems

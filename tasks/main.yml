@@ -40,7 +40,6 @@
     - name: install dependencies
       apt:
         name:
-          - openjdk-11-jdk-headless
           - unzip
       become: yes
 

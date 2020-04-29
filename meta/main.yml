@@ -1,5 +1,6 @@
 ---
-dependencies: []
+dependencies:
+  - role: geerlingguy.java
 
 galaxy_info:
   role_name: keycloak-postgres
@@ -13,10 +14,12 @@ galaxy_info:
   platforms:
     - name: Debian
       versions:
+        - stretch
         - buster
     - name: Ubuntu
       versions:
-        - eoan
+        - xenial
+        - bionic
 
   galaxy_tags:
     - idm
