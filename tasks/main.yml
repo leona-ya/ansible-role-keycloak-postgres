@@ -122,6 +122,12 @@
               <password>{{ keycloak_postgresql_password }}</password>
           </security>
 
+    - name: configure keycloak to use reverse-proxy
+      lineinfile:
+        path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+        regex: '\s*<http-listener name="default" socket-binding="http" redirect-socket=".*true"/>'
+        line: '<http-listener name="default" socket-binding="http" redirect-socket="https" proxy-address-forwarding="true" enable-http2="true"/>'
+
     - name: create Keycloak admin user
       command:
         argv:
