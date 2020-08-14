@@ -73,219 +73,263 @@
       notify:
         - restart keycloak
       become: yes
+  when: not existing_deploy.stat.exists
 
-    - name: create postgres jdbc driver directory
-      file:
-        path: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main"
-        owner: "{{ keycloak_service_user }}"
-        group: "{{ keycloak_service_group }}"
-        state: directory
+- name: create postgres jdbc driver directory
+  file:
+    path: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main"
+    owner: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
+    state: directory
 
-    - name: download postgres jdbc driver
-      get_url:
-        url: "{{ keycloak_postgresql_jdbc_url }}"
-        dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/postgresql.jar"
-        owner: "{{ keycloak_service_user }}"
-        group: "{{ keycloak_service_group }}"
+- name: download postgres jdbc driver
+  get_url:
+    url: "{{ keycloak_postgresql_jdbc_url }}"
+    dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/postgresql.jar"
+    owner: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
 
-    - name: create postgres jdbc driver module.xml
-      copy:
-        src: "postgres-module.xml"
-        dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/module.xml"
-        owner: "{{ keycloak_service_user }}"
-        group: "{{ keycloak_service_group }}"
+- name: create postgres jdbc driver module.xml
+  copy:
+    src: "postgres-module.xml"
+    dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/module.xml"
+    owner: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
 
-    - name: add postgres jdbc driver to standalone.xml
-      blockinfile:
-        path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
-        insertafter: "<drivers>"
-        marker: "<!-- {mark} ANSIBLE MANAGED BLOCK -->"
-        block: |
-          <driver name="postgresql" module="org.postgresql">
-              <xa-datasource-class>org.postgresql.xa.PGXADataSource</xa-datasource-class>
-          </driver>
+- name: add postgres jdbc driver to standalone.xml
+  blockinfile:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+    insertafter: "<drivers>"
+    marker: "<!-- {mark} ANSIBLE MANAGED BLOCK -->"
+    block: |
+      <driver name="postgresql" module="org.postgresql">
+          <xa-datasource-class>org.postgresql.xa.PGXADataSource</xa-datasource-class>
+      </driver>
+  notify: restart keycloak
 
-    - name: add postgres jdbc driver to standalone.xml
-      blockinfile:
-        path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
-        marker: "                {mark}"
-        marker_begin: '<datasource jndi-name="java:jboss/datasources/KeycloakDS" pool-name="KeycloakDS" enabled="true" use-java-context="true" statistics-enabled="${wildfly.datasources.statistics-enabled:${wildfly.statistics-enabled:false}}">'
-        marker_end: "</datasource>"
-        block: |
-          <connection-url>jdbc:postgresql://{{ keycloak_postgresql_host }}:{{ keycloak_postgresql_port }}/{{ keycloak_postgresql_database }}</connection-url>
-          <driver>postgresql</driver>
-          <pool>
-              <max-pool-size>20</max-pool-size>
-          </pool>
-          <security>
-              <user-name>{{ keycloak_postgresql_username }}</user-name>
-              <password>{{ keycloak_postgresql_password }}</password>
-          </security>
+- name: add postgres jdbc driver to standalone.xml
+  blockinfile:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+    marker: "                {mark}"
+    marker_begin: '<datasource jndi-name="java:jboss/datasources/KeycloakDS" pool-name="KeycloakDS" enabled="true" use-java-context="true" statistics-enabled="${wildfly.datasources.statistics-enabled:${wildfly.statistics-enabled:false}}">'
+    marker_end: "</datasource>"
+    block: |
+      <connection-url>jdbc:postgresql://{{ keycloak_postgresql_host }}:{{ keycloak_postgresql_port }}/{{ keycloak_postgresql_database }}</connection-url>
+      <driver>postgresql</driver>
+      <pool>
+          <max-pool-size>20</max-pool-size>
+      </pool>
+      <security>
+          <user-name>{{ keycloak_postgresql_username }}</user-name>
+          <password>{{ keycloak_postgresql_password }}</password>
+      </security>
+  notify: restart keycloak
 
-    - name: create Keycloak admin user
-      command:
-        argv:
-          - "{{ keycloak_jboss_home }}/bin/add-user-keycloak.sh"
-          - -rmaster
-          - -u{{ keycloak_admin_user }}
-          - -p{{ keycloak_admin_password }}
-        creates: "{{ keycloak_config_dir }}/keycloak-add-user.json"
-      become: yes
+- name: configure keycloak to use reverse-proxy
+  lineinfile:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+    regex: '\s*<http-listener name="default" socket-binding="http" redirect-socket=".*true"/>'
+    line: '<http-listener name="default" socket-binding="http" redirect-socket="https" proxy-address-forwarding="true" enable-http2="true"/>'
+  notify: restart keycloak
 
-    - name: validate and set PKCS12 variables
-      block:
-        - name: Check if the variables are set
-          fail:
-            msg: keycloak_tls_pkcs12 requires keycloak_tls_pkcs12_alias
-          when:
-            - keycloak_tls_pkcs12 is defined
-            - keycloak_tls_pkcs12_alias is not defined
-        - name: Set the PKCS12 alias
-          set_fact: keycloak_tls_pkcs12_alias="ansible-keycloak-server"
-          when:
-            - keycloak_tls_pkcs12 is not defined
-        - name: Set the PKCS12 passphrase
-          set_fact:
-            keycloak_tls_pkcs12_passphrase: >-
-                {{ keycloak_tls_pkcs12_passphrase |
-                   default(keycloak_admin_password) }}
+- name: Ensure keycloak profile-config exists
+  file:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/profile.properties"
+    state: touch
+    owner: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
+    modification_time: preserve
+    access_time: preserve
 
-    - name: Allow Keycloak to generate it's own self-signed cert.
-      debug:
-        msg: >-
-          Keycloak will generate it's own self-signed cert.
-          It will not have the correct hostname nor a SAN.
+- name: Enable keycloak preview-profile
+  lineinfile:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/profile.properties"
+    regex: "profile=.*"
+    line: "profile=preview"
+  when: keycloak_profile_preview
+  notify: restart keycloak
+
+- name: Disable keycloak preview-profile
+  lineinfile:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/profile.properties"
+    regex: "profile=.*"
+    state: absent
+  when: not keycloak_profile_preview
+  notify: restart keycloak
+
+- name: Configure keycloak welcomeTheme
+  lineinfile:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+    regex: '\s*<welcomeTheme>.*</welcomeTheme>'
+    insertbefore: '\s*</theme>'
+    line: "<welcomeTheme>{{ keycloak_welcome_theme }}</welcomeTheme>"
+  notify: restart keycloak
+
+- name: create Keycloak admin user
+  command:
+    argv:
+      - "{{ keycloak_jboss_home }}/bin/add-user-keycloak.sh"
+      - -rmaster
+      - -u{{ keycloak_admin_user }}
+      - -p{{ keycloak_admin_password }}
+    creates: "{{ keycloak_config_dir }}/keycloak-add-user.json"
+  become: yes
+
+- name: validate and set PKCS12 variables
+  block:
+    - name: Check if the variables are set
+      fail:
+        msg: keycloak_tls_pkcs12 requires keycloak_tls_pkcs12_alias
       when:
-        - keycloak_tls_key is not defined
-        - keycloak_tls_cert is not defined
-        - keycloak_tls_pkcs12 is not defined
-
-    - block:
-        - name: copy key to PKCS12 location
-          copy:
-            remote_src: "{{ keycloak_tls_files_on_target }}"
-            src: "{{ keycloak_tls_key }}"
-            dest: "{{ keycloak_config_dir }}/tls-key.pem"
-        - name: copy cert to PKCS12 location
-          copy:
-            remote_src: "{{ keycloak_tls_files_on_target }}"
-            src: "{{ keycloak_tls_cert }}"
-            dest: "{{ keycloak_config_dir }}/tls-cert.pem"
-        - name: generate PKCS12
-          openssl_pkcs12:
-            action: export
-            force: yes
-            path: "{{ keycloak_config_dir }}/{{ keycloak_keystore_name }}"
-            passphrase: "{{ keycloak_tls_pkcs12_passphrase }}"
-            friendly_name: "{{ keycloak_tls_pkcs12_alias }}"
-            privatekey_path: "{{ keycloak_config_dir }}/tls-key.pem"
-            certificate_path: "{{ keycloak_config_dir }}/tls-cert.pem"
-            owner: "{{ keycloak_service_user }}"
-            group: "{{ keycloak_service_group }}"
-          register: keycloak_generated_pkcs12_bundle
-        - name: remove key from PKCS12 location
-          file:
-            path: "{{ keycloak_config_dir }}/tls-key.pem"
-            state: absent
-        - name: remove cert from PKCS12 location
-          file:
-            path: "{{ keycloak_config_dir }}/tls-cert.pem"
-            state: absent
-      become: yes
+        - keycloak_tls_pkcs12 is defined
+        - keycloak_tls_pkcs12_alias is not defined
+    - name: Set the PKCS12 alias
+      set_fact: keycloak_tls_pkcs12_alias="ansible-keycloak-server"
       when:
-        - keycloak_tls_key is defined
-        - keycloak_tls_cert is defined
         - keycloak_tls_pkcs12 is not defined
+    - name: Set the PKCS12 passphrase
+      set_fact:
+        keycloak_tls_pkcs12_passphrase: >-
+            {{ keycloak_tls_pkcs12_passphrase |
+               default(keycloak_admin_password) }}
 
-    - name: copy user provided PKCS12 bundle to server host
+- name: Allow Keycloak to generate it's own self-signed cert.
+  debug:
+    msg: >-
+      Keycloak will generate it's own self-signed cert.
+      It will not have the correct hostname nor a SAN.
+  when:
+    - keycloak_tls_key is not defined
+    - keycloak_tls_cert is not defined
+    - keycloak_tls_pkcs12 is not defined
+
+- block:
+    - name: copy key to PKCS12 location
       copy:
         remote_src: "{{ keycloak_tls_files_on_target }}"
-        src: "{{ keycloak_tls_pkcs12 }}"
-        dest: "{{ keycloak_config_dir }}/{{ keycloak_keystore_name }}"
+        src: "{{ keycloak_tls_key }}"
+        dest: "{{ keycloak_config_dir }}/tls-key.pem"
+    - name: copy cert to PKCS12 location
+      copy:
+        remote_src: "{{ keycloak_tls_files_on_target }}"
+        src: "{{ keycloak_tls_cert }}"
+        dest: "{{ keycloak_config_dir }}/tls-cert.pem"
+    - name: generate PKCS12
+      openssl_pkcs12:
+        action: export
+        force: yes
+        path: "{{ keycloak_config_dir }}/{{ keycloak_keystore_name }}"
+        passphrase: "{{ keycloak_tls_pkcs12_passphrase }}"
+        friendly_name: "{{ keycloak_tls_pkcs12_alias }}"
+        privatekey_path: "{{ keycloak_config_dir }}/tls-key.pem"
+        certificate_path: "{{ keycloak_config_dir }}/tls-cert.pem"
         owner: "{{ keycloak_service_user }}"
         group: "{{ keycloak_service_group }}"
-      become: yes
-      when:
-        - keycloak_tls_key is not defined
-        - keycloak_tls_cert is not defined
-        - keycloak_tls_pkcs12 is defined
+      register: keycloak_generated_pkcs12_bundle
+    - name: remove key from PKCS12 location
+      file:
+        path: "{{ keycloak_config_dir }}/tls-key.pem"
+        state: absent
+    - name: remove cert from PKCS12 location
+      file:
+        path: "{{ keycloak_config_dir }}/tls-cert.pem"
+        state: absent
+  become: yes
+  when:
+    - keycloak_tls_key is defined
+    - keycloak_tls_cert is defined
+    - keycloak_tls_pkcs12 is not defined
 
-    - name: install and configure firewalld
-      block:
-        - name: install firewalld
-          package:
-            name: firewalld
+- name: copy user provided PKCS12 bundle to server host
+  copy:
+    remote_src: "{{ keycloak_tls_files_on_target }}"
+    src: "{{ keycloak_tls_pkcs12 }}"
+    dest: "{{ keycloak_config_dir }}/{{ keycloak_keystore_name }}"
+    owner: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
+  become: yes
+  when:
+    - keycloak_tls_key is not defined
+    - keycloak_tls_cert is not defined
+    - keycloak_tls_pkcs12 is defined
 
-        - name: enable and start the firewalld service
-          systemd:
-            name: firewalld
-            enabled: yes
-            state: started
+- name: install and configure firewalld
+  block:
+    - name: install firewalld
+      package:
+        name: firewalld
 
-        - name: configure firewall for Keycloak ports
-          firewalld:
-            port: "{{ item }}"
-            permanent: true
-            state: enabled
-            immediate: yes
-          with_items:
-            - "{{ keycloak_http_port }}/tcp"
-            - "{{ keycloak_https_port }}/tcp"
-      become: yes
-      when: keycloak_configure_firewall
-    - name: configure systemd unit file for keycloak service
+    - name: enable and start the firewalld service
+      systemd:
+        name: firewalld
+        enabled: yes
+        state: started
+
+    - name: configure firewall for Keycloak ports
+      firewalld:
+        port: "{{ item }}"
+        permanent: true
+        state: enabled
+        immediate: yes
+      with_items:
+        - "{{ keycloak_http_port }}/tcp"
+        - "{{ keycloak_https_port }}/tcp"
+  become: yes
+  when: keycloak_configure_firewall
+
+- name: configure systemd unit file for keycloak service
+  template:
+    src: keycloak.service.j2
+    dest: /etc/systemd/system/keycloak.service
+    owner: root
+    group: root
+    mode: 0644
+  become: yes
+  notify:
+    - reload systemd
+    - restart keycloak
+
+# Force the handlers to run now, as keycloak needs to be running before
+# the next tasks are executed.
+- meta: flush_handlers
+
+# The jboss-cli.sh tool requires the management interface to be up,
+# so we wait until it is available.  The management interface comes
+# up in two stages, so we first need to wait for an answer on the port
+# and we still need a long timeout for the jboss-cli.sh tool to wait
+# for internal first-boot initialization to complete.  We must finally
+# restart the keycloak service for our changes to take effect.
+- name: enable TLS in Keycloak server configuration file
+  block:
+    - name: wait for Keycloak management interface to be available
+      wait_for:
+        port: "{{ keycloak_management_http_port }}"
+        timeout: "{{ keycloak_startup_timeout }}"
+    - name: create jboss-cli.sh command file
       template:
-        src: keycloak.service.j2
-        dest: /etc/systemd/system/keycloak.service
+        src: standalone-tls-config.cli.j2
+        dest: "{{ keycloak_config_dir }}/standalone-tls-config.cli"
         owner: root
         group: root
-        mode: 0644
-      become: yes
+        mode: 0600
+    - name: apply keycloak TLS configuration
+      command:
+      args:
+        argv:
+          - "{{ keycloak_jboss_home }}/bin/jboss-cli.sh"
+          - --connect
+          - --timeout={{ keycloak_jboss_config_connect_timeout }}
+          - --command-timeout={{ keycloak_jboss_config_command_timeout }}
+          - --file={{ keycloak_config_dir }}/standalone-tls-config.cli
       notify:
-        - reload systemd
         - restart keycloak
+      tags:
+        - skip_ansible_lint
+    - name: clean up jboss-cli-sh command file
+      file:
+        path: "{{ keycloak_config_dir }}/standalone-tls-config.cli"
+        state: absent
+  become: yes
+  when: (keycloak_tls_pkcs12 is defined) or
+        (keycloak_generated_pkcs12_bundle is changed)
 
-    # Force the handlers to run now, as keycloak needs to be running before
-    # the next tasks are executed.
-    - meta: flush_handlers
-
-    # The jboss-cli.sh tool requires the management interface to be up,
-    # so we wait until it is available.  The management interface comes
-    # up in two stages, so we first need to wait for an answer on the port
-    # and we still need a long timeout for the jboss-cli.sh tool to wait
-    # for internal first-boot initialization to complete.  We must finally
-    # restart the keycloak service for our changes to take effect.
-    - name: enable TLS in Keycloak server configuration file
-      block:
-        - name: wait for Keycloak management interface to be available
-          wait_for:
-            port: "{{ keycloak_management_http_port }}"
-            timeout: "{{ keycloak_startup_timeout }}"
-        - name: create jboss-cli.sh command file
-          template:
-            src: standalone-tls-config.cli.j2
-            dest: "{{ keycloak_config_dir }}/standalone-tls-config.cli"
-            owner: root
-            group: root
-            mode: 0600
-        - name: apply keycloak TLS configuration
-          command:
-          args:
-            argv:
-              - "{{ keycloak_jboss_home }}/bin/jboss-cli.sh"
-              - --connect
-              - --timeout={{ keycloak_jboss_config_connect_timeout }}
-              - --command-timeout={{ keycloak_jboss_config_command_timeout }}
-              - --file={{ keycloak_config_dir }}/standalone-tls-config.cli
-          notify:
-            - restart keycloak
-          tags:
-            - skip_ansible_lint
-        - name: clean up jboss-cli-sh command file
-          file:
-            path: "{{ keycloak_config_dir }}/standalone-tls-config.cli"
-            state: absent
-      become: yes
-      when: (keycloak_tls_pkcs12 is defined) or
-            (keycloak_generated_pkcs12_bundle is changed)
-  when: not existing_deploy.stat.exists
