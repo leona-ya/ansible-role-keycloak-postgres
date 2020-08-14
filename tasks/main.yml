@@ -157,6 +157,14 @@
   when: not keycloak_profile_preview
   notify: restart keycloak
 
+- name: Configure keycloak welcomeTheme
+  lineinfile:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+    regex: '\s*<welcomeTheme>.*</welcomeTheme>'
+    insertbefore: '\s*</theme>'
+    line: "<welcomeTheme>{{ keycloak_welcome_theme }}</welcomeTheme>"
+  notify: restart keycloak
+
 - name: create Keycloak admin user
   command:
     argv:

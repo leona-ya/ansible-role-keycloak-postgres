@@ -25,6 +25,7 @@ keycloak_management_http_port: 9990
 keycloak_management_https_port: 9993
 
 keycloak_profile_preview: false
+keycloak_welcome_theme: "keycloak"
 
 keycloak_admin_user: admin
 
