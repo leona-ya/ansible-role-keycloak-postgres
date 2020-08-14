@@ -132,8 +132,30 @@
     line: '<http-listener name="default" socket-binding="http" redirect-socket="https" proxy-address-forwarding="true" enable-http2="true"/>'
   notify: restart keycloak
 
+- name: Ensure keycloak profile-config exists
+  file:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/profile.properties"
+    state: touch
+    owner: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
+    modification_time: preserve
+    access_time: preserve
 
+- name: Enable keycloak preview-profile
+  lineinfile:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/profile.properties"
+    regex: "profile=.*"
+    line: "profile=preview"
+  when: keycloak_profile_preview
+  notify: restart keycloak
 
+- name: Disable keycloak preview-profile
+  lineinfile:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/profile.properties"
+    regex: "profile=.*"
+    state: absent
+  when: not keycloak_profile_preview
+  notify: restart keycloak
 
 - name: create Keycloak admin user
   command:
