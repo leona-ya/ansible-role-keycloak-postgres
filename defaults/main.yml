@@ -1,6 +1,6 @@
 ---
 ### Version and download settings
-keycloak_version: 9.0.3
+keycloak_version: 11.0.2
 keycloak_url: "https://downloads.jboss.org/keycloak/{{ keycloak_version }}/keycloak-{{ keycloak_version }}.zip"
 
 ## PostgreSQL JDBC
