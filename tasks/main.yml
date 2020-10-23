@@ -73,39 +73,39 @@
       notify:
         - restart keycloak
       become: yes
+
+    - name: create postgres jdbc driver directory
+      file:
+        path: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main"
+        owner: "{{ keycloak_service_user }}"
+        group: "{{ keycloak_service_group }}"
+        state: directory
+
+    - name: download postgres jdbc driver
+      get_url:
+        url: "{{ keycloak_postgresql_jdbc_url }}"
+        dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/postgresql.jar"
+        owner: "{{ keycloak_service_user }}"
+        group: "{{ keycloak_service_group }}"
+
+    - name: create postgres jdbc driver module.xml
+      copy:
+        src: "postgres-module.xml"
+        dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/module.xml"
+        owner: "{{ keycloak_service_user }}"
+        group: "{{ keycloak_service_group }}"
+
+    - name: add postgres jdbc driver to standalone.xml
+      blockinfile:
+        path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+        insertafter: "<drivers>"
+        marker: "<!-- {mark} ANSIBLE MANAGED BLOCK -->"
+        block: |
+          <driver name="postgresql" module="org.postgresql">
+              <xa-datasource-class>org.postgresql.xa.PGXADataSource</xa-datasource-class>
+          </driver>
+      notify: restart keycloak
   when: not existing_deploy.stat.exists
-
-- name: create postgres jdbc driver directory
-  file:
-    path: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main"
-    owner: "{{ keycloak_service_user }}"
-    group: "{{ keycloak_service_group }}"
-    state: directory
-
-- name: download postgres jdbc driver
-  get_url:
-    url: "{{ keycloak_postgresql_jdbc_url }}"
-    dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/postgresql.jar"
-    owner: "{{ keycloak_service_user }}"
-    group: "{{ keycloak_service_group }}"
-
-- name: create postgres jdbc driver module.xml
-  copy:
-    src: "postgres-module.xml"
-    dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/module.xml"
-    owner: "{{ keycloak_service_user }}"
-    group: "{{ keycloak_service_group }}"
-
-- name: add postgres jdbc driver to standalone.xml
-  blockinfile:
-    path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
-    insertafter: "<drivers>"
-    marker: "<!-- {mark} ANSIBLE MANAGED BLOCK -->"
-    block: |
-      <driver name="postgresql" module="org.postgresql">
-          <xa-datasource-class>org.postgresql.xa.PGXADataSource</xa-datasource-class>
-      </driver>
-  notify: restart keycloak
 
 - name: add postgres jdbc driver to standalone.xml
   blockinfile:
