@@ -28,84 +28,81 @@
   register: existing_deploy
   become: yes
 
-- block:
-    - name: perform keycloak install
-      debug:
-        msg: performing keycloak install
+- name: install dependencies
+  apt:
+    name:
+      - unzip
+  become: yes
 
-    - name: check if all required variables are set
-      fail: msg="The variable keycloak_admin_password must be explicitly set"
-      when: keycloak_admin_password is not defined
+- name: install pip dependencies
+  pip:
+    name: pyOpenSSL
+    state: present
 
-    - name: install dependencies
-      apt:
-        name:
-          - unzip
-      become: yes
+- name: create Keycloak group
+  group:
+    name: "{{ keycloak_service_group }}"
+    system: yes
+  become: yes
 
-    - name: install pip dependencies
-      pip:
-        name: pyOpenSSL
-        state: present
+- name: create Keycloak user
+  user:
+    name: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
+    home: "{{ keycloak_base_path }}"
+    create_home: yes
+    system: yes
+  become: yes
 
-    - name: create Keycloak group
-      group:
-        name: "{{ keycloak_service_group }}"
-        system: yes
-      become: yes
+- name: check if all required variables are set
+  fail: msg="The variable keycloak_admin_password must be explicitly set"
+  when:
+    - keycloak_admin_password is not defined
+    - not existing_deploy.stat.exists
 
-    - name: create Keycloak user
-      user:
-        name: "{{ keycloak_service_user }}"
-        group: "{{ keycloak_service_group }}"
-        home: "{{ keycloak_base_path }}"
-        create_home: yes
-        system: yes
-      become: yes
-
-    - name: extract Keycloak archive on target
-      unarchive:
-        remote_src: yes
-        src: "{{ keycloak_url }}"
-        dest: "{{ keycloak_base_path }}"
-        owner: "{{ keycloak_service_user }}"
-        group: "{{ keycloak_service_group }}"
-      notify:
-        - restart keycloak
-      become: yes
-
-    - name: create postgres jdbc driver directory
-      file:
-        path: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main"
-        owner: "{{ keycloak_service_user }}"
-        group: "{{ keycloak_service_group }}"
-        state: directory
-
-    - name: download postgres jdbc driver
-      get_url:
-        url: "{{ keycloak_postgresql_jdbc_url }}"
-        dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/postgresql.jar"
-        owner: "{{ keycloak_service_user }}"
-        group: "{{ keycloak_service_group }}"
-
-    - name: create postgres jdbc driver module.xml
-      copy:
-        src: "postgres-module.xml"
-        dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/module.xml"
-        owner: "{{ keycloak_service_user }}"
-        group: "{{ keycloak_service_group }}"
-
-    - name: add postgres jdbc driver to standalone.xml
-      blockinfile:
-        path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
-        insertafter: "<drivers>"
-        marker: "<!-- {mark} ANSIBLE MANAGED BLOCK -->"
-        block: |
-          <driver name="postgresql" module="org.postgresql">
-              <xa-datasource-class>org.postgresql.xa.PGXADataSource</xa-datasource-class>
-          </driver>
-      notify: restart keycloak
+- name: extract Keycloak archive on target
+  unarchive:
+    remote_src: yes
+    src: "{{ keycloak_url }}"
+    dest: "{{ keycloak_base_path }}"
+    owner: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
+  notify:
+    - restart keycloak
+  become: yes
   when: not existing_deploy.stat.exists
+
+- name: create postgres jdbc driver directory
+  file:
+    path: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main"
+    owner: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
+    state: directory
+
+- name: download postgres jdbc driver
+  get_url:
+    url: "{{ keycloak_postgresql_jdbc_url }}"
+    dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/postgresql.jar"
+    owner: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
+
+- name: create postgres jdbc driver module.xml
+  copy:
+    src: "postgres-module.xml"
+    dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/module.xml"
+    owner: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
+
+- name: add postgres jdbc driver to standalone.xml
+  blockinfile:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+    insertafter: "<drivers>"
+    marker: "<!-- {mark} ANSIBLE MANAGED BLOCK -->"
+    block: |
+      <driver name="postgresql" module="org.postgresql">
+          <xa-datasource-class>org.postgresql.xa.PGXADataSource</xa-datasource-class>
+      </driver>
+  notify: restart keycloak
 
 - name: add postgres jdbc driver to standalone.xml
   blockinfile:
@@ -174,6 +171,7 @@
       - -p{{ keycloak_admin_password }}
     creates: "{{ keycloak_config_dir }}/keycloak-add-user.json"
   become: yes
+  when: not existing_deploy.stat.exists
 
 - name: validate and set PKCS12 variables
   block:
