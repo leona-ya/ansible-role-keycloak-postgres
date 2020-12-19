@@ -36,7 +36,9 @@
 
 - name: install pip dependencies
   pip:
-    name: pyOpenSSL
+    name:
+      - pyOpenSSL
+      - lxml
     state: present
 
 - name: create Keycloak group
@@ -93,40 +95,63 @@
     owner: "{{ keycloak_service_user }}"
     group: "{{ keycloak_service_group }}"
 
-- name: add postgres jdbc driver to standalone.xml
-  blockinfile:
+- name: Check if postgresql jdbc driver is in standalone.xml
+  xml:
     path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
-    insertafter: "<drivers>"
-    marker: "<!-- {mark} ANSIBLE MANAGED BLOCK -->"
-    block: |
-      <driver name="postgresql" module="org.postgresql">
-          <xa-datasource-class>org.postgresql.xa.PGXADataSource</xa-datasource-class>
-      </driver>
-  notify: restart keycloak
+    xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:datasources/ns_subsystem:drivers/ns_subsystem:driver[@name='postgresql']"
+    namespaces:
+      ns_server: "urn:jboss:domain:14.0"
+      ns_subsystem: "urn:jboss:domain:datasources:6.0"
+    count: true
+  register: postgresql_jdbc_driver_standalone_count
+
 
 - name: add postgres jdbc driver to standalone.xml
-  blockinfile:
+  xml:
     path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
-    marker: "                {mark}"
-    marker_begin: '<datasource jndi-name="java:jboss/datasources/KeycloakDS" pool-name="KeycloakDS" enabled="true" use-java-context="true" statistics-enabled="${wildfly.datasources.statistics-enabled:${wildfly.statistics-enabled:false}}">'
-    marker_end: "</datasource>"
-    block: |
-      <connection-url>jdbc:postgresql://{{ keycloak_postgresql_host }}:{{ keycloak_postgresql_port }}/{{ keycloak_postgresql_database }}</connection-url>
-      <driver>postgresql</driver>
-      <pool>
-          <max-pool-size>20</max-pool-size>
-      </pool>
-      <security>
-          <user-name>{{ keycloak_postgresql_username }}</user-name>
-          <password>{{ keycloak_postgresql_password }}</password>
-      </security>
+    xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:datasources/ns_subsystem:drivers"
+    namespaces:
+      ns_server: "urn:jboss:domain:14.0"
+      ns_subsystem: "urn:jboss:domain:datasources:6.0"
+    pretty_print: true
+    add_children:
+      - driver:
+          name: "postgresql"
+          module: "org.postgresql"
+          _:
+            - xa-datasource-class: "org.postgresql.xa.PGXADataSource"
+  notify: restart keycloak
+  when: postgresql_jdbc_driver_standalone_count.count == 0
+
+- name: add postgres jdbc driver to standalone.xml
+  xml:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+    xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:datasources/ns_subsystem:datasource[@jndi-name='java:jboss/datasources/KeycloakDS']"
+    namespaces:
+      ns_server: "urn:jboss:domain:14.0"
+      ns_subsystem: "urn:jboss:domain:datasources:6.0"
+    pretty_print: true
+    set_children:
+      - connection-url: "jdbc:postgresql://{{ keycloak_postgresql_host }}:{{ keycloak_postgresql_port }}/{{ keycloak_postgresql_database }}"
+      - driver: "postgresql"
+      - pool:
+          _:
+            - max-pool-size: "20"
+      - security:
+          _:
+            - user-name: "{{ keycloak_postgresql_username }}"
+            - password: "{{ keycloak_postgresql_password }}"
   notify: restart keycloak
 
 - name: configure keycloak to use reverse-proxy
-  lineinfile:
+  xml:
     path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
-    regex: '\s*<http-listener name="default" .*/>'
-    line: '<http-listener name="default" socket-binding="http" redirect-socket="https" proxy-address-forwarding="true" enable-http2="true"/>'
+    xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:server/ns_subsystem:http-listener[@name='default']"
+    namespaces:
+      ns_server: "urn:jboss:domain:14.0"
+      ns_subsystem: "urn:jboss:domain:undertow:11.0"
+    attribute: "proxy-address-forwarding"
+    value: "true"
   notify: restart keycloak
 
 - name: Ensure keycloak profile-config exists
@@ -155,11 +180,13 @@
   notify: restart keycloak
 
 - name: Configure keycloak welcomeTheme
-  lineinfile:
+  xml:
     path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
-    regex: '\s*<welcomeTheme>.*</welcomeTheme>'
-    insertbefore: '\s*</theme>'
-    line: "<welcomeTheme>{{ keycloak_welcome_theme }}</welcomeTheme>"
+    xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:theme/ns_subsystem:welcomeTheme"
+    namespaces:
+      ns_server: "urn:jboss:domain:14.0"
+      ns_subsystem: "urn:jboss:domain:keycloak-server:1.1"
+    value: "{{ keycloak_welcome_theme }}"
   notify: restart keycloak
 
 - name: create Keycloak admin user
