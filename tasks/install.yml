@@ -1,0 +1,105 @@
+---
+- name: install dependencies
+  apt:
+    name: unzip
+    state: present
+
+- name: install pip dependencies
+  pip:
+    name:
+      - pyOpenSSL
+      - lxml
+    state: present
+
+- name: check for an existing deployment
+  stat:
+    path: "{{ keycloak_jboss_home }}"
+  register: existing_deploy
+
+- block:
+    - name: stop the old keycloak service
+      systemd:
+        name: "{{ keycloak_service_name }}"
+        state: stopped
+      ignore_errors: true
+
+    - name: remove the old Keycloak deployment
+      file:
+        path: "{{ keycloak_jboss_home }}"
+        state: absent
+  when: existing_deploy.stat.exists and keycloak_force_install|bool
+
+- name: check for an existing deployment after possible forced removal
+  stat:
+    path: "{{ keycloak_jboss_home }}"
+  register: existing_deploy
+
+- name: Extract Keycloak archive on target
+  unarchive:
+    src: "{{ keycloak_url }}"
+    dest: "{{ keycloak_base_path }}"
+    remote_src: true
+    owner: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
+  notify:
+    - restart keycloak
+  when: not existing_deploy.stat.exists
+
+- name: Create postgres jdbc driver directory
+  file:
+    path: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main"
+    owner: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
+    state: directory
+
+- name: Download postgresql jdbc driver
+  get_url:
+    url: "{{ keycloak_postgresql_jdbc_url }}"
+    dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/postgresql.jar"
+    owner: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
+
+- name: Create module.xml for postgres jdbc driver
+  copy:
+    src: "postgres-module.xml"
+    dest: "{{ keycloak_jboss_home }}/modules/system/layers/keycloak/org/postgresql/main/module.xml"
+    owner: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
+
+- name: Check if postgresql jdbc driver is in standalone.xml
+  xml:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+    xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:datasources/ns_subsystem:drivers/ns_subsystem:driver[@name='postgresql']"
+    namespaces:
+      ns_server: "urn:jboss:domain:14.0"
+      ns_subsystem: "urn:jboss:domain:datasources:6.0"
+    count: true
+  register: postgresql_jdbc_driver_standalone_count
+
+- name: Add postgresql jdbc driver to standalone.xml
+  xml:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+    xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:datasources/ns_subsystem:drivers"
+    namespaces:
+      ns_server: "urn:jboss:domain:14.0"
+      ns_subsystem: "urn:jboss:domain:datasources:6.0"
+    pretty_print: true
+    add_children:
+      - driver:
+          name: "postgresql"
+          module: "org.postgresql"
+          _:
+            - xa-datasource-class: "org.postgresql.xa.PGXADataSource"
+  notify: restart keycloak
+  when: postgresql_jdbc_driver_standalone_count.count == 0
+
+- name: Add systemd unit file for keycloak service
+  template:
+    src: "keycloak.service.j2"
+    dest: "/etc/systemd/system/{{ keycloak_service_name }}.service"
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - reload systemd
+    - restart keycloak

@@ -1,7 +1,4 @@
 ---
-dependencies:
-  - role: geerlingguy.java
-
 galaxy_info:
   role_name: keycloak-postgres
   author: em0lar, Nathan Kinder
@@ -25,3 +22,4 @@ galaxy_info:
     - idm
     - keycloak
     - sso
+    - postgresql

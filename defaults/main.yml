@@ -1,56 +1,36 @@
 ---
-### Version and download settings
-keycloak_version: 12.0.0
+## General (required)
+keycloak_version: "12.0.1"
 keycloak_url: "https://github.com/keycloak/keycloak/releases/download/{{ keycloak_version }}/keycloak-{{ keycloak_version }}.zip"
+keycloak_force_install: false
+keycloak_create_admin: false
+keycloak_admin_user: "admin"
 
-## PostgreSQL JDBC
-keycloak_postgresql_jdbc_version: 42.2.18
-keycloak_postgresql_jdbc_url: "https://jdbc.postgresql.org/download/postgresql-{{ keycloak_postgresql_jdbc_version }}.jar"
-keycloak_postgresql_host: "localhost"
-keycloak_postgresql_database: "keycloak"
-keycloak_postgresql_port: 5432
-
-### Install location and service settings
-keycloak_base_path: /opt/keycloak
+## General (optional)
+keycloak_service_user: "keycloak"
+keycloak_service_group: "{{ keycloak_service_user }}"
+keycloak_service_name: "keycloak"
+keycloak_base_path: "/opt/keycloak"
 keycloak_jboss_home: "{{ keycloak_base_path }}/keycloak-{{ keycloak_version }}"
 keycloak_config_dir: "{{ keycloak_jboss_home }}/standalone/configuration"
-keycloak_service_user: keycloak
-keycloak_service_group: "{{ keycloak_service_user }}"
+keycloak_startup_timeout: "300"
+keycloak_java_opts: "-Xms256m -Xmx1024m"
 
-### Keycloak configuration settings
-keycloak_bind_address: 0.0.0.0
-keycloak_http_port: 8080
-keycloak_https_port: 8443
-keycloak_management_http_port: 9990
-keycloak_management_https_port: 9993
+## Database
+keycloak_postgresql_jdbc_version: "42.2.18"
+keycloak_postgresql_jdbc_url: "https://jdbc.postgresql.org/download/postgresql-{{ keycloak_postgresql_jdbc_version }}.jar"
+keycloak_postgresql_host: "localhost"
+keycloak_postgresql_port: "5432"
+keycloak_postgresql_database: "keycloak"
 
+## Networking
+keycloak_behind_reverseproxy: true
+keycloak_bind_address: "127.0.0.1"
+keycloak_http_port: "8080"
+keycloak_https_port: "8443"
+keycloak_management_http_port: "9990"
+keycloak_management_https_port: "9993"
+
+## Customization
 keycloak_profile_preview: false
 keycloak_welcome_theme: "keycloak"
-
-keycloak_admin_user: admin
-
-### TLS
-keycloak_keystore_name: ansible-keycloak-server.p12
-keycloak_tls_files_on_target: false
-
-### Optional Behavior
-
-# If Keycloak is already installed remove it and re-install
-keycloak_force_install: false
-
-# Number of seconds to wait for Keycloak to start (default: 5 minutes)
-keycloak_startup_timeout: 300
-
-# Number of milliseconds to wait for jboss configuration utility
-# to connect to wildfly server (default: 5 seconds)
-keycloak_jboss_config_connect_timeout: 5000
-
-# Number of seconds to wait for jboss configuration utility
-# to complete each command executed in configuration file (default: 1 minute)
-keycloak_jboss_config_command_timeout: 60
-
-# Configure the firewall to allow access to Keycloak public ports
-keycloak_configure_firewall: true
-
-# Configure the JAVA_OPTS used by the Keycloak service
-keycloak_java_opts: "-Xms512m -Xmx2048m -XX:MaxPermSize=768m"

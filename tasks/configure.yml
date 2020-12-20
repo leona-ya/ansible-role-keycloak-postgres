@@ -1,0 +1,89 @@
+---
+- name: Configure postgresql database in standalone.yml
+  xml:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+    xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:datasources/ns_subsystem:datasource[@jndi-name='java:jboss/datasources/KeycloakDS']"
+    namespaces:
+      ns_server: "urn:jboss:domain:14.0"
+      ns_subsystem: "urn:jboss:domain:datasources:6.0"
+    pretty_print: true
+    set_children:
+      - connection-url: "jdbc:postgresql://{{ keycloak_postgresql_host }}:{{ keycloak_postgresql_port }}/{{ keycloak_postgresql_database }}"
+      - driver: "postgresql"
+      - pool:
+          _:
+            - max-pool-size: "20"
+      - security:
+          _:
+            - user-name: "{{ keycloak_postgresql_username }}"
+            - password: "{{ keycloak_postgresql_password }}"
+  notify: restart keycloak
+
+- name: Configure keycloak to use reverse-proxy
+  xml:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+    xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:server/ns_subsystem:http-listener[@name='default']"
+    namespaces:
+      ns_server: "urn:jboss:domain:14.0"
+      ns_subsystem: "urn:jboss:domain:undertow:11.0"
+    attribute: "proxy-address-forwarding"
+    value: "true"
+  when: keycloak_behind_reverseproxy
+  notify: restart keycloak
+
+- name: Configure keycloak to use reverse-proxy
+  xml:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+    xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:server/ns_subsystem:http-listener[@name='default']"
+    namespaces:
+      ns_server: "urn:jboss:domain:14.0"
+      ns_subsystem: "urn:jboss:domain:undertow:11.0"
+    attribute: "proxy-address-forwarding"
+    value: "false"
+  when: not keycloak_behind_reverseproxy
+  notify: restart keycloak
+
+- name: Ensure keycloak profile-config exists
+  file:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/profile.properties"
+    state: touch
+    owner: "{{ keycloak_service_user }}"
+    group: "{{ keycloak_service_group }}"
+    modification_time: preserve
+    access_time: preserve
+
+- name: Enable keycloak preview-profile
+  lineinfile:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/profile.properties"
+    regex: "profile=.*"
+    line: "profile=preview"
+  when: keycloak_profile_preview
+  notify: restart keycloak
+
+- name: Disable keycloak preview-profile
+  lineinfile:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/profile.properties"
+    regex: "profile=.*"
+    state: absent
+  when: not keycloak_profile_preview
+  notify: restart keycloak
+
+- name: Configure keycloak welcomeTheme
+  xml:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+    xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:theme/ns_subsystem:welcomeTheme"
+    namespaces:
+      ns_server: "urn:jboss:domain:14.0"
+      ns_subsystem: "urn:jboss:domain:keycloak-server:1.1"
+    value: "{{ keycloak_welcome_theme }}"
+  notify: restart keycloak
+
+- name: Create Keycloak admin user
+  command:
+    argv:
+      - "{{ keycloak_jboss_home }}/bin/add-user-keycloak.sh"
+      - -rmaster
+      - -u{{ keycloak_admin_user }}
+      - -p{{ keycloak_admin_password }}
+    creates: "{{ keycloak_config_dir }}/keycloak-add-user.json"
+  when: not existing_deploy.stat.exists and keycloak_create_admin
