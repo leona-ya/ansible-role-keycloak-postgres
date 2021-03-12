@@ -21,7 +21,7 @@ Before running this role following requirements have to be fulfilled:
 
 | Variable Name | Function | default | comment |
 | ------------- | -------- | ------- | ------- |
-| `keycloak_version` | Version of Keycloak going to be installed | `"12.0.1"` | The role is build for working with the default version. Try other versions with your own risk |
+| `keycloak_version` | Version of Keycloak going to be installed | `"12.0.4"` | The role is build for working with the default version. Try other versions with your own risk |
 | `keycloak_url` | URL of the Keycloak archive which is downloaded | `"https://downloads.jboss.org/keycloak/{{ keycloak_version }}/keycloak-{{ keycloak_version }}.zip"` | |
 | `keycloak_force_install` | Whether Keycloak should be (re-)installed ignoring the check if it is already installed | `false` | |
 | `keycloak_create_admin` | Whether a Keycloak admin user should be created | `false` | should be only run one time after first keycloak installation (no matter which version)  |

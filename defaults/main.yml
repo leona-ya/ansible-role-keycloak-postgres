@@ -1,6 +1,6 @@
 ---
 ## General (required)
-keycloak_version: "12.0.1"
+keycloak_version: "12.0.4"
 keycloak_url: "https://github.com/keycloak/keycloak/releases/download/{{ keycloak_version }}/keycloak-{{ keycloak_version }}.zip"
 keycloak_force_install: false
 keycloak_create_admin: false
