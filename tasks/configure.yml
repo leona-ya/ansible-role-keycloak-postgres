@@ -1,10 +1,26 @@
 ---
+- name: Configure postgresql driver in standalone.xml
+  xml:
+    path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
+    xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:datasources/ns_subsystem:drivers"
+    namespaces:
+      ns_server: "urn:jboss:domain:16.0"
+      ns_subsystem: "urn:jboss:domain:datasources:6.0"
+    pretty_print: true
+    set_children:
+      - driver:
+          name: "postgresql"
+          module: "org.postgresql"
+          _:
+            - xa-datasource-class: "org.postgresql.xa.PGXADataSource"
+  notify: restart keycloak
+
 - name: Configure postgresql database in standalone.yml
   xml:
     path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
     xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:datasources/ns_subsystem:datasource[@jndi-name='java:jboss/datasources/KeycloakDS']"
     namespaces:
-      ns_server: "urn:jboss:domain:14.0"
+      ns_server: "urn:jboss:domain:16.0"
       ns_subsystem: "urn:jboss:domain:datasources:6.0"
     pretty_print: true
     set_children:
@@ -24,8 +40,8 @@
     path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
     xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:server/ns_subsystem:http-listener[@name='default']"
     namespaces:
-      ns_server: "urn:jboss:domain:14.0"
-      ns_subsystem: "urn:jboss:domain:undertow:11.0"
+      ns_server: "urn:jboss:domain:16.0"
+      ns_subsystem: "urn:jboss:domain:undertow:12.0"
     attribute: "proxy-address-forwarding"
     value: "true"
   when: keycloak_behind_reverseproxy
@@ -36,8 +52,8 @@
     path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
     xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:server/ns_subsystem:http-listener[@name='default']"
     namespaces:
-      ns_server: "urn:jboss:domain:14.0"
-      ns_subsystem: "urn:jboss:domain:undertow:11.0"
+      ns_server: "urn:jboss:domain:16.0"
+      ns_subsystem: "urn:jboss:domain:undertow:12.0"
     attribute: "proxy-address-forwarding"
     value: "false"
   when: not keycloak_behind_reverseproxy
@@ -73,7 +89,7 @@
     path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
     xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:theme/ns_subsystem:welcomeTheme"
     namespaces:
-      ns_server: "urn:jboss:domain:14.0"
+      ns_server: "urn:jboss:domain:16.0"
       ns_subsystem: "urn:jboss:domain:keycloak-server:1.1"
     value: "{{ keycloak_welcome_theme }}"
   notify: restart keycloak
