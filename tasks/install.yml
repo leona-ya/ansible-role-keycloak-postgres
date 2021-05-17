@@ -70,8 +70,8 @@
     path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
     xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:datasources/ns_subsystem:drivers/ns_subsystem:driver[@name='postgresql']"
     namespaces:
-      ns_server: "urn:jboss:domain:14.0"
-      ns_subsystem: "urn:jboss:domain:datasources:6.0"
+      ns_server: "{{ keycloak_config_ns_server }}"
+      ns_subsystem: "{{ keycloak_config_ns_subsystem_datasources }}"
     count: true
   register: postgresql_jdbc_driver_standalone_count
 
@@ -80,8 +80,8 @@
     path: "{{ keycloak_jboss_home }}/standalone/configuration/standalone.xml"
     xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:datasources/ns_subsystem:drivers"
     namespaces:
-      ns_server: "urn:jboss:domain:14.0"
-      ns_subsystem: "urn:jboss:domain:datasources:6.0"
+      ns_server: "{{ keycloak_config_ns_server }}"
+      ns_subsystem: "{{ keycloak_config_ns_subsystem_datasources }}"
     pretty_print: true
     add_children:
       - driver:

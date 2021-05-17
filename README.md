@@ -10,6 +10,7 @@ This role also handles some initial Keycloak server configuration. This includes
 Before running this role following requirements have to be fulfilled:
 
 * Java JDK (version 8 or higher) for example with [geerlingguy.java](https://github.com/geerlingguy/ansible-role-java)
+* PIP, for example with [geerlingguy.pip](https://github.com/geerlingguy/ansible-role-java)
 * Running PostgreSQL with a user and database for Keycloak for example with [geerlingguy.postgresql](https://github.com/geerlingguy/ansible-role-postgresql)
 * In most cases also a reverse proxy configured doing the following:
   * Add `X-Forwarded-For` header
@@ -21,8 +22,8 @@ Before running this role following requirements have to be fulfilled:
 
 | Variable Name | Function | default | comment |
 | ------------- | -------- | ------- | ------- |
-| `keycloak_version` | Version of Keycloak going to be installed | `"12.0.4"` | The role is build for working with the default version. Try other versions with your own risk |
-| `keycloak_url` | URL of the Keycloak archive which is downloaded | `"https://downloads.jboss.org/keycloak/{{ keycloak_version }}/keycloak-{{ keycloak_version }}.zip"` | |
+| `keycloak_version` | Version of Keycloak going to be installed | `"13.0.0"` | The role is build for working with the default version. Try other versions with your own risk |
+| `keycloak_url` | URL of the Keycloak archive which is downloaded | `"https://github.com/keycloak/keycloak/releases/download/{{ keycloak_version }}/keycloak-{{ keycloak_version }}.zip"` | |
 | `keycloak_force_install` | Whether Keycloak should be (re-)installed ignoring the check if it is already installed | `false` | |
 | `keycloak_create_admin` | Whether a Keycloak admin user should be created | `false` | should be only run one time after first keycloak installation (no matter which version)  |
 | `keycloak_admin_user` | Username of the Keycloak admin user which is going to be created | `"admin"` | |
@@ -40,6 +41,18 @@ Before running this role following requirements have to be fulfilled:
 | `keycloak_config_dir` | Configuration directory of the Keycloak installation | `"{{ keycloak_jboss_home }}/standalone/configuration"` | (only change if you know what you're doing)  |
 | `keycloak_startup_timeout` | Time to wait Keycloak to start (given to SystemD service)  | `"300"` | in seconds | 
 | `keycloak_java_opts` | JAVA_OPTS used by Keycloak | `"-Xms256m -Xmx1024m"""` | if you run a large instance or experience problems you should have a look on this | 
+
+### Configuration files (optional)
+
+To adapt, depending on the Keycloak version.  
+Please, refer to the **xmlns** attributes in the **configuration/standalone.xml** file.
+
+| Variable Name | Function | default | comment |
+| ------------- | -------- | ------- | ------- |
+| `keycloak_config_ns_server` | XML namespace for the server element. | `"urn:jboss:domain:16.0"` |  |
+| `keycloak_config_ns_undertow` | XML namespace for the undertow subsystem. | `"urn:jboss:domain:undertow:12.0"` |  |
+| `keycloak_config_ns_subsystem_datasource` | XML namespace for the datasources subsystem. | `"urn:jboss:domain:datasources:6.0"` |  |
+| `keycloak_config_ns_subsystem_keycloak` | XML namespace for the Keycloak subsystem. | `"urn:jboss:domain:keycloak-server:1.1"` |  |
 
 ### Database (required)
 
