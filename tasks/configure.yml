@@ -13,6 +13,11 @@
           module: "org.postgresql"
           _:
             - xa-datasource-class: "org.postgresql.xa.PGXADataSource"
+      - driver:
+          name: "h2"
+          module: "com.h2database.h2"
+          _:
+            - xa-datasource-class: "org.h2.jdbcx.JdbcDataSource"
   notify: restart keycloak
 
 - name: Configure postgresql database in standalone.yml
