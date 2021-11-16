@@ -17,6 +17,11 @@
           _:
             - user-name: "{{ keycloak_postgresql_username }}"
             - password: "{{ keycloak_postgresql_password }}"
+      - validation:
+          _:
+             - check-valid-connection-sql: "select 1"
+             - background-validation: "true"
+             - background-validation-millis: "{{ keycloak_postgresql_validation_time }}"
   notify: restart keycloak
 
 - name: Configure keycloak to use reverse-proxy

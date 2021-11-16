@@ -40,6 +40,7 @@ Before running this role following requirements have to be fulfilled:
 | `keycloak_config_dir` | Configuration directory of the Keycloak installation | `"{{ keycloak_jboss_home }}/standalone/configuration"` | (only change if you know what you're doing)  |
 | `keycloak_startup_timeout` | Time to wait Keycloak to start (given to SystemD service)  | `"300"` | in seconds | 
 | `keycloak_java_opts` | JAVA_OPTS used by Keycloak | `"-Xms256m -Xmx1024m"""` | if you run a large instance or experience problems you should have a look on this | 
+| `keycloak_postgresql_validation_time` | The timer in which the database connection will be checked | `3000` | in milliseconds |
 
 ### Database (required)
 
