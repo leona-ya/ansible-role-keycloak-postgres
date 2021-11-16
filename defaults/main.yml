@@ -22,7 +22,7 @@ keycloak_postgresql_jdbc_url: "https://jdbc.postgresql.org/download/postgresql-{
 keycloak_postgresql_host: "localhost"
 keycloak_postgresql_port: "5432"
 keycloak_postgresql_database: "keycloak"
-keycloak_postgresql_validation_time: 3000
+keycloak_postgresql_validation_time: "3000"
 
 ## Networking
 keycloak_behind_reverseproxy: true
