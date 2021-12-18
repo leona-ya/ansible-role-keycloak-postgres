@@ -21,7 +21,7 @@ Before running this role following requirements have to be fulfilled:
 
 | Variable Name | Function | default | comment |
 | ------------- | -------- | ------- | ------- |
-| `keycloak_version` | Version of Keycloak going to be installed | `"12.0.4"` | The role is build for working with the default version. Try other versions with your own risk |
+| `keycloak_version` | Version of Keycloak going to be installed | `"16.0.0"` | The role is build for working with the default version. Try other versions with your own risk |
 | `keycloak_url` | URL of the Keycloak archive which is downloaded | `"https://downloads.jboss.org/keycloak/{{ keycloak_version }}/keycloak-{{ keycloak_version }}.zip"` | |
 | `keycloak_force_install` | Whether Keycloak should be (re-)installed ignoring the check if it is already installed | `false` | |
 | `keycloak_create_admin` | Whether a Keycloak admin user should be created | `false` | should be only run one time after first keycloak installation (no matter which version)  |
@@ -42,11 +42,23 @@ Before running this role following requirements have to be fulfilled:
 | `keycloak_java_opts` | JAVA_OPTS used by Keycloak | `"-Xms256m -Xmx1024m"""` | if you run a large instance or experience problems you should have a look on this | 
 | `keycloak_postgresql_validation_time` | The timer in which the database connection will be checked | `3000` | in milliseconds |
 
+### Configuration files (optional)
+
+To adapt, depending on the Keycloak version.
+Please, refer to the **xmlns** attributes in the **configuration/standalone.xml** file.
+
+| Variable Name | Function | default | comment |
+| ------------- | -------- | ------- | ------- |
+| `keycloak_config_ns_server` | XML namespace for the server element. | `"urn:jboss:domain:18.0"` |  |
+| `keycloak_config_ns_undertow` | XML namespace for the undertow subsystem. | `"urn:jboss:domain:undertow:12.0"` |  |
+| `keycloak_config_ns_subsystem_datasources` | XML namespace for the datasources subsystem. | `"urn:jboss:domain:datasources:6.0"` |  |
+| `keycloak_config_ns_subsystem_keycloak` | XML namespace for the Keycloak subsystem. | `"urn:jboss:domain:keycloak-server:1.1"` |  |
+
 ### Database (required)
 
 | Variable Name | Function | default | comment |
 | ------------- | -------- | ------- | ------- |
-| `keycloak_postgresql_jdbc_version` | Version of PostgreSQL JDBC driver that should be installed | `"42.2.18"` | (only needed when using the default PostgreSQL JDBC download url) |
+| `keycloak_postgresql_jdbc_version` | Version of PostgreSQL JDBC driver that should be installed | `"42.3.1"` | (only needed when using the default PostgreSQL JDBC download url) |
 | `keycloak_postgresql_jdbc_url` | URL of PostgreSQL JDBC driver that should be downloaded | `"https://jdbc.postgresql.org/download/postgresql-{{ keycloak_postgresql_jdbc_version }}.jar"` | |
 | `keycloak_postgresql_host` | Host running the PostgreSQL database | `"localhost"` | |
 | `keycloak_postgresql_port` | Port of the PostgreSQL database | `"5432"` | |

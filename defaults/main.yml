@@ -1,6 +1,6 @@
 ---
 ## General (required)
-keycloak_version: "13.0.0"
+keycloak_version: "16.0.0"
 keycloak_url: "https://github.com/keycloak/keycloak/releases/download/{{ keycloak_version }}/keycloak-{{ keycloak_version }}.zip"
 keycloak_force_install: false
 keycloak_create_admin: false
@@ -16,8 +16,14 @@ keycloak_config_dir: "{{ keycloak_jboss_home }}/standalone/configuration"
 keycloak_startup_timeout: "300"
 keycloak_java_opts: "-Xms256m -Xmx1024m"
 
+## Configuration files
+keycloak_config_ns_server: "urn:jboss:domain:18.0"
+keycloak_config_ns_subsystem_undertow: "urn:jboss:domain:undertow:12.0"
+keycloak_config_ns_subsystem_keycloak: "urn:jboss:domain:keycloak-server:1.1"
+keycloak_config_ns_subsystem_datasources: "urn:jboss:domain:datasources:6.0"
+
 ## Database
-keycloak_postgresql_jdbc_version: "42.2.20"
+keycloak_postgresql_jdbc_version: "42.3.1"
 keycloak_postgresql_jdbc_url: "https://jdbc.postgresql.org/download/postgresql-{{ keycloak_postgresql_jdbc_version }}.jar"
 keycloak_postgresql_host: "localhost"
 keycloak_postgresql_port: "5432"
