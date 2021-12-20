@@ -26,7 +26,7 @@
     xpath: "/ns_server:server/ns_server:profile/ns_subsystem:subsystem/ns_subsystem:datasources/ns_subsystem:datasource[@jndi-name='java:jboss/datasources/KeycloakDS']"
     namespaces:
       ns_server: "{{ keycloak_config_ns_server }}"
-      ns_subsystem: "{{ keycloak_config_ns_subsystem_undertow }}"
+      ns_subsystem: "{{ keycloak_config_ns_subsystem_datasources }}"
     pretty_print: true
     set_children:
       - connection-url: "jdbc:postgresql://{{ keycloak_postgresql_host }}:{{ keycloak_postgresql_port }}/{{ keycloak_postgresql_database }}"
